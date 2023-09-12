@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: '2010-09-09' 
+ 
+#define parameters recheck this
+
+Parameters:
+  KeyPair:
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Description: '*REQUIRED* Select Keypair'
+  InstanceTypeParameter:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t1.micro
+    Description: Instance defaults to t2.micro due to running windows server
+  BucketName:
+    Type: String
+    Default: josephguertincapstone
+    Description: 'Please modify or enter preferred bucket name'
+
+Resources:
+  MyInstance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType:
+        Ref: InstanceTypeParameter
+      ImageId: 'ami-0f9a92942448ac56f'
+      KeyName:
+        Ref: 'KeyPair'
+      IamInstanceProfile: !Ref InstanceProfile
+
+#Creates S3 bucket with parameter BucketName
+  MyS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      AccessControl: PublicRead
+      BucketName: !Ref BucketName
+      WebsiteConfiguration:
+        IndexDocument: index.html
+
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      InstanceProfileName: EC22S3B
+      Path: /
+      Roles: 
+       - !Ref Ec2InstanceRole
+  
+  Ec2InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ec2-instance-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+    
+  InstanceS3Policy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: S3Policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Action:
+              - s3:*
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref BucketName
+                - /*
+      Roles:  
+        -
+          !Ref Ec2InstanceRole

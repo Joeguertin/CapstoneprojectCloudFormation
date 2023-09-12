@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+#define parameters below
+
+Parameters:
+  KeyPair:
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Description: '*REQUIRED* Select Keypair'
+  InstanceTypeParameter:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+    Description: Instance defaults to t2.micro
+#  Instance:
+#    Type: 'String'
+#    Description: Enter name of EC2 Instance
+#    Default: Capstone Project
+  BucketName:
+    Type: String
+    Default: josephguertincapstone
+    Description: Bucket name
+##
+  SubnetId:
+    Description: The Public subnet where the ec2 instance will be launched
+    Type: AWS::EC2::Subnet::Id
+  VPCID:
+    Description: The VPC to launch the GitHub Enterprise server
+    Type: AWS::EC2::VPC::Id
+  AccessCIDR:
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Description: The IP address range that can be used to access to the EC2 instance
+    MaxLength: '18'
+    MinLength: '9'
+    Type: String
+
+Resources:
+
+  RootRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Principal:
+              Service: ec2.amazonaws.com
+            Effect: Allow
+            Sid: ''
+      Policies:
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - 's3:GetObject'
+                Resource: !Sub 'arn:aws:s3:::${BucketName}/*'
+                Effect: Allow
+          PolicyName: AuthenticatedS3GetObjects
+  RootInstanceProfile:
+      Type: AWS::IAM::InstanceProfile
+      Properties:
+        Path: /
+        Roles:
+          - !Ref RootRole
+  InstanceSecurityGroup:
+    Properties:
+      GroupDescription: 'ssh access to instance'
+      SecurityGroupIngress:
+        - CidrIp: !Ref AccessCIDR
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+      VpcId: !Ref VPCID
+    Type: 'AWS::EC2::SecurityGroup'  
+
+  MyInstance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType:
+        Ref: InstanceTypeParameter
+      ImageId: 'ami-0f9a92942448ac56f'
+      KeyName:
+        Ref: 'KeyPair'
+      SubnetId: !Ref SubnetId
+
+
+
+  MyS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      AccessControl: PublicRead
+      BucketName: !Ref BucketName
+      WebsiteConfiguration:
+        IndexDocument: index.html
+
+
+#  MyS3BucketPolicy:
+#    Type: AWS::S3::BucketPolicy
+#    Properties:
+#      Bucket: !Ref BucketName
+#      PolicyDocument:
+#        Version: '2012-10-17'
+#        Statement:
+#          - Action:
+#              - s3:GetObject
+#            Effect: Allow
+#            Principal: "*"
+##              - Service: 'arn:aws:ec2:us-east-1::106818637610:instance:${InstanceId}'
+#            
+##              - s3:ListBucket
+#            Resource: !Sub 'arn:aws:s3:::${BucketName}/*'
+##              - !Sub 'arn:aws:s3:::${MyS3Bucket}'
+##      Bucket: !Ref MyS3Bucket
