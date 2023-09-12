@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09' 
  
-#define parameters recheck this
+#define parameters
 
 Parameters:
   KeyPair:
